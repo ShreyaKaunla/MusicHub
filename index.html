@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Local Music Hub</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <!-- Top bar -->
+    <header class="top-bar">
+      <div class="logo-area">
+        <div class="logo-dot"></div>
+        <span class="logo-text">Local Music Hub</span>
+      </div>
+      <div class="search-area">
+        <input
+          type="text"
+          id="global-search"
+          class="search-input"
+          placeholder="Search by song, artist, or album..."
+        />
+      </div>
+    </header>
+
+    <!-- Tabs -->
+    <nav class="tabs">
+      <button class="tab-link active" data-view="scan">Scan</button>
+      <button class="tab-link" data-view="auto">Auto</button>
+      <button class="tab-link" data-view="playlists">Playlists</button>
+      <button class="tab-link" data-view="songs">Songs</button>
+      <button class="tab-link" data-view="artists">Artists</button>
+      <button class="tab-link" data-view="albums">Albums</button>
+      <button class="tab-link" data-view="room">Room</button>
+    </nav>
+
+    <!-- Main content -->
+    <main class="main-content">
+      <!-- Scan view -->
+      <section class="view view-scan active" id="view-scan">
+        <div class="scan-hero">
+          <h1>Scan Your Music Library</h1>
+          <p>
+            Pick your music folder to build mood-based playlists, artist and album views.
+          </p>
+          <div class="scan-drop-wrapper">
+            <button id="btn-scan" class="primary-btn">🔍 Scan Music Folder</button>
+            <input
+  type="file"
+  id="file-picker"
+  webkitdirectory
+  multiple
+  style="display:none"
+/>
+
+            <p class="scan-note">
+              Currently uses a demo library. Later this will scan real MP3s on your device.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Auto playlists view -->
+      <section class="view" id="view-auto">
+        <div class="section-header">
+          <h2>Auto Playlists</h2>
+          <span class="section-note">Mood-based smart mixes</span>
+        </div>
+        <div class="playlist-grid" id="auto-playlist-grid"></div>
+      </section>
+
+      <!-- User Playlists view -->
+      <section class="view" id="view-playlists">
+        <div class="section-header">
+          <h2>Your Playlists</h2>
+          <span class="section-note">Create and manage your own mixes</span>
+        </div>
+
+        <div class="playlists-layout">
+          <div class="playlists-left">
+            <div class="playlists-toolbar">
+              <button class="primary-btn small" id="btn-new-playlist">+ New Playlist</button>
+              <button class="secondary-btn ghost small" id="btn-save-queue">
+                Save Current Queue
+              </button>
+            </div>
+            <div class="playlist-list-wrapper">
+              <ul class="list" id="user-playlists-list"></ul>
+            </div>
+          </div>
+
+          <div class="playlists-right">
+            <div class="playlist-detail-header">
+              <h3 id="pl-detail-name">Select a playlist</h3>
+              <span class="section-note" id="pl-detail-meta">No playlist selected</span>
+            </div>
+            <ul class="list songs-list" id="pl-detail-songs"></ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- Songs view -->
+      <section class="view" id="view-songs">
+        <div class="section-header">
+          <h2>All Songs</h2>
+          <span class="section-note">Search and play any track</span>
+        </div>
+        <ul class="list songs-list" id="songs-list"></ul>
+      </section>
+
+      <!-- Artists view -->
+      <section class="view" id="view-artists">
+        <div class="section-header">
+          <h2>Artists</h2>
+          <span class="section-note">Browse by artist</span>
+        </div>
+        <div class="split-layout">
+          <ul class="list master-list" id="artists-list"></ul>
+          <ul class="list detail-list" id="artist-songs-list"></ul>
+        </div>
+      </section>
+
+      <!-- Albums view -->
+      <section class="view" id="view-albums">
+        <div class="section-header">
+          <h2>Albums</h2>
+          <span class="section-note">Browse by album</span>
+        </div>
+        <div class="split-layout">
+          <ul class="list master-list" id="albums-list"></ul>
+          <ul class="list detail-list" id="album-songs-list"></ul>
+        </div>
+      </section>
+
+      <!-- Shared Room view (UI only for now) -->
+      <section class="view" id="view-room">
+        <div class="section-header">
+          <h2>Shared Playlist Room</h2>
+          <span class="section-note">
+            Room UI only; real-time sync will be added with backend.
+          </span>
+        </div>
+
+        <div class="room-controls">
+          <input
+            type="text"
+            id="room-code-input"
+            class="room-input"
+            placeholder="Enter room code"
+          />
+          <button class="secondary-btn" id="btn-create-room">Create Room</button>
+          <button class="secondary-btn ghost" id="btn-join-room">Join Room</button>
+        </div>
+
+        <div class="room-meta">
+          <div class="room-status">
+            <span class="dot dot-idle" id="room-status-dot"></span>
+            <span id="room-status-text">Not connected</span>
+          </div>
+          <div class="room-code-display">
+            Room Code: <span id="room-code-display">—</span>
+          </div>
+        </div>
+
+        <div class="room-queue">
+          <h3>Room Queue</h3>
+          <ul class="list" id="room-queue-list"></ul>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Spotify-style bottom player -->
+  <footer class="player-shell">
+    <div class="mini-player" id="mini-player">
+      <!-- Left: art + title/artist -->
+      <div class="mini-left">
+        <div class="mini-art"></div>
+        <div class="mini-meta">
+          <div class="mini-title" id="mini-title">No song playing</div>
+          <div class="mini-sub" id="mini-sub">Select a track to start</div>
+        </div>
+      </div>
+
+      <!-- Center: controls + time + seek -->
+      <div class="mini-center">
+        <div class="mini-controls">
+          <button class="icon-btn subtle" id="btn-prev">⏮</button>
+          <button class="icon-btn primary" id="btn-play">▶</button>
+          <button class="icon-btn subtle" id="btn-next">⏭</button>
+        </div>
+        <div class="mini-progress">
+          <span class="time-label" id="current-time">0:00</span>
+          <div class="progress-bar" id="mini-progress-bar">
+            <div class="progress-fill" id="progress-fill"></div>
+          </div>
+          <span class="time-label" id="total-time">0:00</span>
+        </div>
+      </div>
+
+      <!-- Right: extras -->
+      <div class="mini-right">
+        <button class="icon-btn subtle" id="btn-loop">🔁</button>
+        <button class="icon-btn subtle" id="btn-fav">♥</button>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Bottom sheet expanded player -->
+  <div class="player-sheet" id="player-sheet">
+    <div class="sheet-content">
+      <div class="sheet-handle" id="sheet-handle"></div>
+      <div class="sheet-art"></div>
+      <div class="sheet-meta">
+        <h3 id="sheet-title">No song playing</h3>
+        <p id="sheet-sub">Select a track from library</p>
+        <div class="sheet-tags" id="sheet-tags"></div>
+      </div>
+
+      <div class="sheet-controls">
+        <div class="sheet-progress">
+          <div class="progress-bar large" id="sheet-progress-bar">
+            <div class="progress-fill" id="sheet-progress-fill"></div>
+          </div>
+          <div class="progress-times">
+            <span id="sheet-current">0:00</span>
+            <span id="sheet-total">0:00</span>
+          </div>
+        </div>
+
+        <div class="sheet-buttons">
+          <button class="pill-btn" id="btn-mood-playlist">Mood Playlist</button>
+          <button class="pill-btn" id="btn-more-artist">More from Artist</button>
+          <button class="pill-btn ghost" id="btn-add-to-room">Add to Room</button>
+        </div>
+
+        <div class="sheet-transport">
+          <button class="icon-btn" id="sheet-prev">⏮</button>
+          <button class="icon-btn primary" id="sheet-play">▶</button>
+          <button class="icon-btn" id="sheet-next">⏭</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <audio id="audio-player"></audio>
+  <script src="app.js"></script>
+</body>
+</html>
+
+
+

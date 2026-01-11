@@ -32,8 +32,10 @@ cd MusicHub
 pip install -r requirements.txt
 python main.py          # Backend: localhost:8000
 
-# Frontend: VS Code → index.html → Open with Live Server
- ML 
+# Frontend: VS Code → index.html → Open with Live Server```
+**Flow**: Scan folder → Auto mood playlists!
+
+## 🧠 ML Pipeline
 MP3 File → librosa.load() → Features (tempo, RMS, MFCC13)
 ↓
 Rule Classifier:
@@ -45,7 +47,7 @@ Frontend: mood*cosine + tempo_bucket + artist_bonus - repeat_penalty
 ↓
 Radio Queue (20 songs, YouTube-style diversity)
 
-```Future Work
+Future Work
 **Playlist Room**: Multi-user shared queue (WebSocket sync)
 **Cloud deploy (Render/Vercel)**
 **Real NN classifier (train on Spotify dataset)**

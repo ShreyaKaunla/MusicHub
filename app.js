@@ -1,16 +1,16 @@
 // LOCAL MUSIC HUB – front-end demo with Spotify-style bottom bar and mood radio
-
-// Views
-const views = {
-  scan: document.getElementById('view-scan'),
-  auto: document.getElementById('view-auto'),
-  playlists: document.getElementById('view-playlists'),
-  songs: document.getElementById('view-songs'),
-  artists: document.getElementById('view-artists'),
-  albums: document.getElementById('view-albums'),
-  room: document.getElementById('view-room')
-};
-
+document.addEventListener('DOMContentLoaded', function() {
+  // LOCAL MUSIC HUB – front-end demo with Spotify-style bottom bar and mood radio
+  
+  const views = {
+    scan: document.getElementById('view-scan'),
+    auto: document.getElementById('view-auto'),
+    playlists: document.getElementById('view-playlists'),
+    songs: document.getElementById('view-songs'),
+    artists: document.getElementById('view-artists'),
+    albums: document.getElementById('view-albums'),
+    room: document.getElementById('view-room')
+  };
 
 
 const tabButtons = Array.from(document.querySelectorAll('.tab-link'));
@@ -63,8 +63,8 @@ const btnNext = document.getElementById('btn-next');
 const sheetPrev = document.getElementById('sheet-prev');
 const sheetNext = document.getElementById('sheet-next');
 // Folder scan input
-const filePicker = document.getElementById('file-picker');
-const btnScan = document.getElementById('btn-scan');
+const filePicker = document.getElementById('filePicker');
+const btnscan = document.getElementById('btnscan');
 
 
 // Progress (visual only for now)
@@ -79,36 +79,25 @@ const totalTimeLabel = document.getElementById('total-time');
 const sheetCurrentLabel = document.getElementById('sheet-current');
 const sheetTotalLabel = document.getElementById('sheet-total');
 const moodVectors = {
-  happy:    [1, 0, 0, 0],
-  sad:      [0, 1, 0, 0],
-  chill:    [0, 0, 1, 0],
-  energetic:[0, 0, 0, 1]
+    party: [0.9, 0.8, 0.1, 0.2, 1.0, 0.3, 0.1],     // tempo, energy, centroid, mfcc0, rolloff, zcr, chroma
+    sad: [0.1, 0.1, 0.9, 0.8, 0.2, 1.0, 0.4],
+    chill: [0.3, 0.2, 0.7, 0.4, 0.3, 0.6, 0.9],
+    happy: [0.8, 0.7, 0.3, 0.9, 0.6, 0.2, 0.8],
+    romantic: [0.5, 0.4, 0.6, 0.7, 0.4, 0.5, 0.7],
+    soothing: [0.1, 0.05, 0.8, 0.3, 0.1, 0.8, 0.6],
+    angry: [0.2, 0.9, 0.4, 0.5, 1.0, 0.7, 0.3]
 };
-let trackEmbeddings = {}; // key: "title|artist" -> { album, embedding }
-
-async function loadEmbeddings() {
-  try {
-    const res = await fetch('track_embeddings.json');
-    if (!res.ok) {
-      console.warn('No track_embeddings.json found or fetch failed');
-      return;
-    }
-    trackEmbeddings = await res.json();
-    console.log('Loaded embeddings for', Object.keys(trackEmbeddings).length, 'tracks');
-  } catch (e) {
-    console.error('Failed to load embeddings', e);
-  }
-}
 
 function dot(a, b) {
-  return a[0]*b[0] + a[1]*b[1] + a[2]*b[2] + a[3]*b[3];
+    return a.reduce((sum, x, i) => sum + x * b[i], 0);
 }
 
 function moodSimilarity(m1, m2) {
-  const v1 = moodVectors[m1] || moodVectors.chill;
-  const v2 = moodVectors[m2] || moodVectors.chill;
-  return dot(v1, v2);
+    const v1 = moodVectors[m1] || moodVectors.chill;
+    const v2 = moodVectors[m2] || moodVectors.chill;
+    return dot(v1, v2) / (Math.sqrt(dot(v1,v1)) * Math.sqrt(dot(v2,v2)));  // Cosine sim
 }
+
 
 // Demo library
 let library = {
@@ -121,92 +110,89 @@ let library = {
     { id: 6, title: 'Lo-Fi Nebula', artist: 'Aurora Wave', album: 'Nebula Dreams', duration: 188, mood: 'chill' }
   ],
   playlists: {
-    happy: { id: 'happy', name: 'Happy Vibes', system: true, songs: [] },
+    party: { id: 'party', name: 'Party Hits', system: true, songs: [] },
     sad: { id: 'sad', name: 'Sad Hours', system: true, songs: [] },
     chill: { id: 'chill', name: 'Chill Nights', system: true, songs: [] },
-    energetic: { id: 'energetic', name: 'Energetic / Workout', system: true, songs: [] }
-  }
+    happy: { id: 'happy', name: 'Happy Vibes', system: true, songs: [] },
+    romantic: { id: 'romantic', name: 'Romantic Evenings', system: true, songs: [] },
+    soothing: { id: 'soothing', name: 'Soothing Moments', system: true, songs: [] },
+    angry: { id: 'angry', name: 'Angry Anthems', system: true, songs: [] }
+},
+
 };
 // Build songs from chosen folder
-btnScan.addEventListener('click', () => {
-  // open native folder picker
-  if (filePicker.showPicker) {
-    filePicker.showPicker(); // modern browsers[web:132]
-  } else {
-    filePicker.click();
+btnscan.addEventListener('click', () => filePicker.click());
+
+// ✅ SINGLE async handler with backend ML
+filePicker.addEventListener('change', async (e) => {
+  console.log('🎯 Change event fired');
+  console.log('Raw files:', filePicker.files);
+  const files = Array.from(filePicker.files || []);
+  console.log('📁 Files array length:', files.length);
+  if (files.length) console.log('First 3:', files.slice(0,3).map(f => ({name: f.name, type: f.type, size: f.size})));
+  
+  if (!files.length) {
+    console.error('❌ Zero files after select - check folder has MP3s');
+    return;
   }
-});
-
-filePicker.addEventListener('change', async () => {  // <-- ASYNC here
-  const files = Array.from(filePicker.files);
-  if (!files.length) return;
-
-  let idCounter = 1;
+  
   const newSongs = [];
+  let idCounter = library.songs.length;
 
-  for (const file of files) {
-    if (!file.type.startsWith('audio/')) continue;
-
-    const name = file.name.replace(/\.[^/.]+$/, "");
-    const parts = name.split('-').map(p => p.trim());
-    let artist = "Unknown Artist";
-    let title = name;
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    const title = file.name.replace(/\.[^/.]+$/, "");
+    console.log(`Processing ${i+1}/${files.length}: ${title} ${file.type}`);
     
-    if (parts.length >= 2) {
-      artist = parts[0];
-      title = parts.slice(1).join(' - ');
-    }
+    if (!file.type.startsWith('audio/') && !file.name.toLowerCase().match(/\.(mp3|wav|m4a)$/i)) continue;
     
-    const album = 'Local Files';
+    let parts = title.split(' - ');
+    const artist = parts[0] || 'Unknown Artist';
     
-    // ML Backend call with try/catch
     let mood = 'chill';
     try {
       const formData = new FormData();
       formData.append('file', file);
-      const response = await fetch('http://127.0.0.1:8002/embed', {
-        method: 'POST',
-        body: formData
-      });
-      const result = await response.json();
-      mood = result.mood || 'chill';
-      console.log(`✅ Backend mood for ${file.name}: ${mood}`);
+      const resp = await fetch('http://127.0.0.1:8000/embed', {method: 'POST', body: formData});
+      
+      if (resp.ok) {
+        const data = await resp.json();
+        mood = data.mood || 'chill';
+        console.log(`✅ ${title}: AI Mood "${mood}" (tempo:${data.tempo?.toFixed(0)}, energy:${data.energy?.toFixed(2)})`);
+        
+        newSongs.push({
+          id: idCounter++,
+          title, artist,
+          album: 'Local Files',
+          mood,
+          url: URL.createObjectURL(file),
+          mfcc0: data.mfcc0 || -200,
+          zcr: data.zcr || 0.1,
+          tempo: data.tempo || 100,
+          energy: data.energy || 0.1
+        });
+      } else {
+        newSongs.push({id: idCounter++, title, artist: 'Unknown', mood: 'chill', url: URL.createObjectURL(file), album: 'Local Files'});
+      }
     } catch (e) {
-      console.warn(`❌ Backend failed for ${file.name}, using 'chill'`);
+      newSongs.push({id: idCounter++, title, artist: 'Unknown', mood: 'chill', url: URL.createObjectURL(file), album: 'Local Files'});
     }
-    
-    const url = URL.createObjectURL(file);  // blob URL for playback
-
-// ✅ ADD embedding from backend (SAME response as mood)
-let embedding = [0,0,0,0];
-if (result && result.embedding) {
-  embedding = result.embedding;
-  console.log(`✅ ML embedding: ${file.name} [${embedding.length}]`);
-}
-
-newSongs.push({
-  id: idCounter++,
-  title,
-  artist,
-  album,
-  duration: 0,
-  mood,  // From backend
-  url,
-  embedding  // ✅ ML vector for vibe matching
-});
-
-
-    
-    console.log(`Added song: ${title} (${mood})`);
   }
 
   if (!newSongs.length) {
-    alert('No audio files found in that folder.');
+    alert('No audio files. Add MP3s.');
     return;
   }
 
-  library.songs = newSongs;
+  
+  
+  library.songs = [...library.songs, ...newSongs];
+    // Append to demo
+  classifyMoods(); 
+  renderAutoPlaylists();
   filteredSongs = [...library.songs];
+  console.log('🎉 Total library now:', library.songs.length, 'songs');
+  
   renderSongs(filteredSongs);
   renderArtists();
   renderAlbums();
@@ -216,73 +202,6 @@ newSongs.push({
 });
 
 
-
-function cosineSim(a, b) {
-  if (!a || !b) return 0;
-  let dot = 0, na = 0, nb = 0;
-  const len = Math.min(a.length, b.length);
-  for (let i = 0; i < len; i++) {
-    dot += a[i] * b[i];
-    na += a[i] * a[i];
-    nb += b[i] * b[i];
-  }
-  if (!na || !nb) return 0;
-  return dot / (Math.sqrt(na) * Math.sqrt(nb));
-}
-// NEW: Cosine similarity for embeddings (vibe matching)
-function vibeDistance(emb1, emb2) {
-  const dot = emb1.reduce((sum, a, i) => sum + a * emb2[i], 0);
-  const norm1 = Math.sqrt(emb1.reduce((sum, a) => sum + a*a, 0));
-  const norm2 = Math.sqrt(emb2.reduce((sum, a) => sum + a*a, 0));
-  return Math.max(0, dot / (norm1 * norm2 || 1));  // 0-1 similarity
-}
-
-// Keep existing mood dot product
-function dot(a, b) {
-  return a[0]*b[0] + a[1]*b[1] + a[2]*b[2] + a[3]*b[3];
-}
-
-function scoreRelated(base, candidate, history) {
-  if (base.id === candidate.id) return 9999;
-  
-  let score = 0;
-  
-  // 🔥 VIBE SIMILARITY = 70% weight (MFCC embeddings)
-  if (base.embedding && candidate.embedding) {
-    const vibeSim = vibeDistance(base.embedding, candidate.embedding);
-    score += vibeSim * 70;
-  }
-  
-  // Metadata = 30% weight
-  if (base.artist === candidate.artist) score += 15;
-  if (base.album === candidate.album) score += 10;
-  score += moodSimilarity(base.mood, candidate.mood) * 5;
-  
-  // Title bonuses
-  const bt = base.title.toLowerCase();
-  const ct = candidate.title.toLowerCase();
-  if (bt.split(' ')[0] === ct.split(' ')[0]) score += 3;
-  if (bt.includes('remix') && ct.includes('remix')) score += 2;
-  
-  // History penalty
-  const lastFew = history.slice(-5);
-  if (lastFew.some(s => s.artist === candidate.artist)) score -= 10;
-  
-  // Randomness
-  score += (Math.random() - 0.5) * 5;
-  
-  return score;
-}
-
-function buildRadioQueueFromSong(song) {
-  const history = playerState.queue || [];
-  const scored = library.songs.map(s => ({
-    song: s,
-    score: scoreRelated(song, s, history)
-  }));
-  scored.sort((a, b) => b.score - a.score);
-  return scored.map(x => x.song);
-}
 
 const PLAYLISTS_KEY = 'localMusicHubPlaylistsV1';
 
@@ -382,88 +301,100 @@ function addToQueue(song) {
   playerState.queue.push(song);
 }
 
-function scoreRelated(base, candidate, history = []) {
-  if (base.id === candidate.id) return 9999;
-  let score = 0;
 
-  // Strong artist and mood bias
-  if (base.artist === candidate.artist) score += 80;
-  if (base.album === candidate.album) score += 40;
-  if (base.mood === candidate.mood) score += 35;
-
-  const bt = base.title.toLowerCase();
-  const ct = candidate.title.toLowerCase();
-
-  if (bt.split(' ')[0] && ct.includes(bt.split(' ')[0])) score += 10;
-  if (bt.includes('remix') && ct.includes('remix')) score += 8;
-  if (bt.includes('live') && ct.includes('live')) score += 8;
-
-  // Penalize if candidate artist was just played
-  const lastFew = history.slice(-5);
-  if (lastFew.some(s => s.artist === candidate.artist)) score -= 25;
-
-  // Small randomness to avoid fixed order
-  score += Math.random() * 5;
-
-  return score;
+function scoreRelated(base, candidate, history) {
+    if (base.id === candidate.id) return 10000;
+    
+    let score = 0;
+    
+    // FAST mood match
+    score += moodSimilarity(base.mood, candidate.mood) * 50;
+    
+    // Tempo bucket match (YouTube style)
+    const baseTempo = base.tempo || 100;
+    const candTempo = candidate.tempo || 100;
+    const tempoBucket = Math.floor(baseTempo / 20) * 20;
+    if (Math.abs(candTempo - tempoBucket) < 25) score += 30;
+    
+    // Energy similarity
+    const eDiff = Math.abs((base.energy || 0.1) - (candidate.energy || 0.1));
+    score += Math.max(0, 25 - eDiff * 200);
+    
+    // Artist (40% weight)
+    if (base.artist === candidate.artist) score += 40;
+    
+    // MFCC timbre
+    const mDiff = Math.abs((base.mfcc0 || -200) - (candidate.mfcc0 || -200));
+    score += Math.max(0, 20 - mDiff * 0.1);
+    
+    // NO repeats (YouTube diversity)
+    const recentArtists = history.slice(-5).map(h => h.artist);
+    if (recentArtists.includes(candidate.artist)) score -= 50;
+    
+    return score;
 }
 
 
+function buildRadioQueueFromSong(song) {
+  // Step 1: pre‑filter by mood similarity
+  const baseMood = song.mood || 'chill';
+  const candidates = library.songs.filter(s => {
+    if (s.id === song.id) return true; // always keep base song
+    const sim = moodSimilarity(baseMood, s.mood || 'chill');
+    return sim > 0; // keep only same/compatible mood
+  });
 
- 
+  // Step 2: score within candidates
+  const history = playerState.queue || [];
+  const scored = candidates.map(s => ({
+    song: s,
+    score: scoreRelated(song, s, history)
+  }));
+
+  scored.sort((a, b) => b.score - a.score);
+  return scored.map(x => x.song);
+}
 
 
 function classifyMoods() {
-  ['happy', 'sad', 'chill', 'energetic'].forEach(m => {
-    library.playlists[m].songs = [];
-  });
-  library.songs.forEach(s => {
-    const bucket = library.playlists[s.mood] || library.playlists.chill;
-    bucket.songs.push(s.id);
-  });
+    const autoMoods = ['party', 'sad', 'chill', 'happy', 'romantic', 'soothing', 'angry'];
+    autoMoods.forEach(mood => library.playlists[mood].songs = []);
+    
+    library.songs.forEach(song => {
+        if (song.mood) {
+            if (library.playlists[song.mood]) {
+                library.playlists[song.mood].songs.push(song.id);
+            }
+        }
+    });
 }
 
 function renderAutoPlaylists() {
-  classifyMoods();
-  autoGrid.innerHTML = '';
-
-  ['happy', 'sad', 'chill', 'energetic'].forEach(mood => {
-    const pl = library.playlists[mood];
-    const count = pl.songs.length;
-    const card = document.createElement('div');
-    card.className = 'playlist-card';
-    card.innerHTML = `
-      <div class="playlist-name">${pl.name}</div>
-      <div class="playlist-meta">Auto mood detection</div>
-      <div class="playlist-count">${count} songs</div>
-    `;
-    card.addEventListener('click', () => {
-      const songs = pl.songs.map(id => library.songs.find(s => s.id === id));
-      renderSongs(songs);
-      switchView('songs');
-    });
-    autoGrid.appendChild(card);
-  });
-
-  Object.values(library.playlists)
-    .filter(pl => !pl.system)
-    .forEach(pl => {
-      const count = pl.songs.length;
-      const card = document.createElement('div');
-      card.className = 'playlist-card';
-      card.innerHTML = `
-        <div class="playlist-name">${pl.name}</div>
-        <div class="playlist-meta">Your playlist</div>
-        <div class="playlist-count">${count} songs</div>
-      `;
-      card.addEventListener('click', () => {
-        const songs = pl.songs.map(id => library.songs.find(s => s.id === id));
-        renderSongs(songs);
-        switchView('songs');
-      });
-      autoGrid.appendChild(card);
+    classifyMoods();  // Auto-assign first
+    autoGrid.innerHTML = '';
+    
+    const allMoods = ['party', 'sad', 'chill', 'happy', 'romantic', 'soothing', 'angry'];
+    allMoods.forEach(mood => {
+        const pl = library.playlists[mood];
+        const count = pl.songs.length;
+        const card = document.createElement('div');
+        card.className = 'playlist-card';
+        card.dataset.mood = mood;
+        card.innerHTML = `
+            <div class="playlist-name">${pl.name}</div>
+            <div class="playlist-art-placeholder"></div>
+            <div class="playlist-meta">${count} songs • Auto mood</div>
+            <div class="playlist-count">${count}</div>
+        `;
+        card.addEventListener('click', () => {
+            const songs = pl.songs.map(id => library.songs.find(s => s.id === id));
+            renderSongs(songs);
+            switchView('songs');
+        });
+        autoGrid.appendChild(card);
     });
 }
+
 
 function renderArtists() {
   const map = new Map();
@@ -596,44 +527,58 @@ globalSearch.addEventListener('input', e => {
 
 /* ---------- mood radio ---------- */
 
-function scoreRelated(base, candidate, history = []) {
-  if (base.id === candidate.id) return 9999;
-  let score = 0;
+function moodSimilarity(m1, m2) {
+  const v1 = moodVectors[m1] || moodVectors.chill;
+  const v2 = moodVectors[m2] || moodVectors.chill;
+  return dot(v1, v2);  // 1=exact, 0=opposite
+}
 
-  // Strong artist / album / mood relationship
-  if (base.artist === candidate.artist) score += 80;
-  if (base.album === candidate.album) score += 40;
-  score += 50 * moodSimilarity(base.mood, candidate.mood);
-
-  const bt = base.title.toLowerCase();
-  const ct = candidate.title.toLowerCase();
-
-  // Title similarity heuristics
-  const baseWords = bt.split(/\s+/).filter(Boolean);
-  baseWords.forEach(w => {
-    if (w.length > 3 && ct.includes(w)) score += 5;
-  });
-  if (bt.includes('remix') && ct.includes('remix')) score += 10;
-  if (bt.includes('live') && ct.includes('live')) score += 10;
-
-  // Penalize recently played artists (diversity)
-  const lastFew = history.slice(-5);
-  if (lastFew.some(s => s.artist === candidate.artist)) score -= 30;
-
-  // Tiny randomness to avoid deterministic order
-  score += Math.random() * 5;
-
-  return score;
+function scoreRelated(base, candidate, history) {
+    if (base.id === candidate.id) return 10000;
+    
+    let score = moodSimilarity(base.mood, candidate.mood) * 60;
+    
+    // Tempo/energy match
+    const tDiff = Math.abs((base.tempo || 100) - (candidate.tempo || 100));
+    score += (30 - Math.min(tDiff, 30)) * 0.8;
+    const eDiff = Math.abs((base.energy || 0.1) - (candidate.energy || 0.1));
+    score += (25 - Math.min(eDiff*100, 25)) * 0.8;
+    
+    // Artist (YouTube huge bonus)
+    if (base.artist === candidate.artist) score += 40;
+    
+    // MFCC timbre match
+    const m0Diff = Math.abs((base.mfcc0 || 0) - (candidate.mfcc0 || 0));
+    const m1Diff = Math.abs((base.mfcc1 || 0) - (candidate.mfcc1 || 0));
+    score += (20 - m0Diff*2) + (15 - m1Diff*2);
+    
+    // Diversity penalty
+    const recent = history.slice(-3);
+    if (recent.some(h => h.artist === candidate.artist)) score -= 35;
+    
+    return score + Math.random()*4;
 }
 
 
-function buildRadioQueueFromSong(song) {
-  const scored = library.songs.map(s => ({
+
+function buildRadioQueueFromSong(baseSong) {
+  // STRICT filter: same mood only (beats match!)
+  const candidates = library.songs.filter(s => 
+    s.id !== baseSong.id && moodSimilarity(baseSong.mood, s.mood) > 0.8  // High threshold
+  );
+  console.log('Radio candidates (same mood):', candidates.length);
+  
+  // Score & sort
+  const scored = candidates.map(s => ({
     song: s,
-    score: scoreRelated(song, s)
+    score: scoreRelated(baseSong, s, playerState.queue)
   }));
   scored.sort((a, b) => b.score - a.score);
-  return scored.map(x => x.song);
+  
+  // Top 20 + base first
+  const queue = [baseSong, ...scored.slice(0, 19).map(x => x.song)];
+  console.log('Radio queue moods:', queue.map(s => s.mood));
+  return queue;
 }
 
 function startRadioFromSong(song) {
@@ -689,14 +634,11 @@ function playCurrentFromQueue() {
   sheetTags.innerHTML = '';
   const tag = document.createElement('span');
   tag.className = 'tag-pill';
-  tag.textContent =
-    song.mood === 'happy'
-      ? 'Happy Vibes'
-      : song.mood === 'sad'
-      ? 'Sad Hours'
-      : song.mood === 'energetic'
-      ? 'Energetic'
-      : 'Chill Nights';
+  tag.textContent = {
+  happy: "Happy Vibes", sad: "Sad Hours", chill: "Chill Nights",
+  energetic: "Energetic", romantic: "Romantic", soothing: "Soothing", angry: "Angry"
+  }[song.mood] || song.mood;
+
   sheetTags.appendChild(tag);
 
   progressFill.style.width = '0%';
@@ -783,7 +725,6 @@ function prevInQueue() {
   }
   playCurrentFromQueue();
 }
-
 
 /* ---------- progress (visual) ---------- */
 
@@ -1005,19 +946,11 @@ btnMoodPlaylist.addEventListener('click', e => {
     alert('Select a song first to build a mood playlist.');
     return;
   }
-
-  // Build a new mood-only queue from current song
-  const moodQueue = buildRadioQueueFromSong(playerState.currentSong);
-
-  if (!moodQueue.length) return;
-
-  playerState.queue = moodQueue;
-  playerState.index = 0;          // start at first in new mood queue
-  playCurrentFromQueue();         // plays queue[0]
-
+  playerState.queue = buildRadioQueueFromSong(playerState.currentSong);
+  playerState.index = 0;
+  playCurrentFromQueue();
   showQueueInPanel('Mood playlist');
 });
-
 
 btnMoreArtist.addEventListener('click', e => {
   e.stopPropagation();
@@ -1059,7 +992,6 @@ tabButtons.forEach(btn => {
 
 /* ---------- init ---------- */
 
-// init
 loadUserPlaylists();
 filteredSongs = [...library.songs];
 renderSongs(filteredSongs);
@@ -1068,4 +1000,5 @@ renderArtists();
 renderAlbums();
 renderUserPlaylistsPanel();
 switchView('scan');
-loadEmbeddings();
+});
+

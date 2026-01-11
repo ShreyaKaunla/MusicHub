@@ -45,14 +45,8 @@
             Pick your music folder to build mood-based playlists, artist and album views.
           </p>
           <div class="scan-drop-wrapper">
-            <button id="btn-scan" class="primary-btn">🔍 Scan Music Folder</button>
-            <input
-  type="file"
-  id="file-picker"
-  webkitdirectory
-  multiple
-  style="display:none"
-/>
+            <button id="btnscan" class="primary-btn">🔍 Scan Music Folder</button>
+            <input type="file" id="filePicker" webkitdirectory multiple accept="audio/*" style="display: none;">
 
             <p class="scan-note">
               Currently uses a demo library. Later this will scan real MP3s on your device.

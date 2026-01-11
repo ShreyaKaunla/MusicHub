@@ -4,11 +4,17 @@
 
 ## Features
 - **📁 Scan local music folders** (drag/drop or file picker)
+- 
 - **Auto-parse artist/title** from filenames (e.g., "Artist - Song.mp3")
+- 
 - **ML embeddings for mood similarity** (cosine distance scoring)
+- 
 - **Spotify-style UI**: bottom player bar, auto-playlists, artists/albums views
+- 
 - **Mood playlists**: Party, Chill, Romantic, Energetic (from embeddings + heuristics)
+- 
 - **Local-only**—no streaming, privacy-focused
+- 
 - **Playlist Room** (upcoming): Shared queue mode for collaborative sessions
 
 ## Tech Stack
@@ -16,11 +22,21 @@ Frontend: HTML/CSS/JS (Vanilla)
 Backend: Flask + librosa (tempo, energy, MFCC13, Chroma, ZCR)
 ML Pipeline: Audio → Features → Rule Classifier → Similarity Scoring
 Key Files:
-├── index.html UI Structure
-├── app.js Scan + Embed Matching + Radio Queue
-├── main.py Flask API (/embed endpoint)
-├── requirements.txt
-└── style.css Spotify-inspired
+
+├── 
+index.html UI Structure
+
+├── 
+app.js Scan + Embed Matching + Radio Queue
+
+├──
+main.py Flask API (/embed endpoint)
+
+├── 
+requirements.txt
+
+└──
+style.css Spotify-inspired
 
 **Live Demo**: Backend `python main.py` → Frontend Live Server `index.html`
 

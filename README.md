@@ -49,8 +49,9 @@ Frontend: mood*cosine + tempo_bucket + artist_bonus - repeat_penalty
 ↓
 Radio Queue (20 songs, YouTube-style diversity)
 
-Future Work
+## Future Work
 **Playlist Room**: Multi-user shared queue (WebSocket sync)
 **Cloud deploy (Render/Vercel)**
 **Real NN classifier (train on Spotify dataset)**
-#**BTech CSE 3rd Year | PTU Mohali | Full-stack ML project**
+
+##BTech CSE 3rd Year | PTU Mohali | Full-stack ML project

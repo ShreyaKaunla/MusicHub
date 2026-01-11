@@ -4,17 +4,17 @@
 
 ## Features
 - **📁 Scan local music folders** (drag/drop or file picker)
-- 
+  
 - **Auto-parse artist/title** from filenames (e.g., "Artist - Song.mp3")
-- 
+  
 - **ML embeddings for mood similarity** (cosine distance scoring)
-- 
+  
 - **Spotify-style UI**: bottom player bar, auto-playlists, artists/albums views
-- 
+  
 - **Mood playlists**: Party, Chill, Romantic, Energetic (from embeddings + heuristics)
-- 
+  
 - **Local-only**—no streaming, privacy-focused
-- 
+  
 - **Playlist Room** (upcoming): Shared queue mode for collaborative sessions
 
 ## Tech Stack

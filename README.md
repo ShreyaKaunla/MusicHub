@@ -1,35 +1,33 @@
-# MusicHub 🎵
+# MusicHub 
 
 Local music player with AI-powered mood-based playlists. Parses MP3 filenames (artist/title), attaches ML embeddings, and generates vibe-matched queues.
 
 ## Features
-- Scan local music folders (drag/drop or file picker)
-- Auto-parse artist/title from filenames (e.g., "Artist - Song.mp3")
-- ML embeddings for mood similarity (cosine distance scoring)
-- Spotify-style UI: bottom player bar, auto-playlists, artists/albums views
-- Mood playlists: Chill, energetic, sad (from embeddings + heuristics)
-- Local-only—no streaming, privacy-focused
+- Scan local music folders 
+- Auto-parse artist/title from filenames 
+- ML embeddings for mood similarity
+- Spotify-style UI: bottom player bar, auto-playlists
+- Mood playlists: Party, Chill, Romantic, Energetic
+- Local-only, privacy-focused
 
 ## Tech Stack
-- **Frontend**: HTML/CSS/JavaScript (Vanilla JS)
-- **Key Files**:
-  | File | Description |
-  |------|-------------|
-  | `index.html` | Main UI structure |
-  | `style.css` | Spotify-inspired styling |
-  | `app.js` | Core logic: scan, parse, embed matching, playlists |
-  | `track_embeddings.json` | Pre-computed ML vectors for songs |
-- **ML**: Embeddings (likely TensorFlow/Colab-generated), loaded client-side
-- **Runs**: Browser-only (localhost), no server needed post-setup
+Frontend: HTML/CSS/JS
+Backend: Flask + librosa (tempo, energy, MFCC13)
+Key Files: index.html, app.js, main.py, requirements.txt
 
 ## Quick Start
-1. Open `index.html` in browser (Chrome/Firefox)
-2. **Scan Folder**: Click file picker > select MP3s
-3. Console logs: "✅ ML: song.mp3 → embedding"
-4. Play track → Auto-generates mood playlist (vibe queue)
+git clone https://github.com/ShreyaKaunla/MusicHub.git
+cd MusicHub
+pip install -r requirements.txt
+python main.py
+Live Server index.html
 
-Demo: Local MP3s → Embed match → "Ishq Bulaava" → Similar chill tracks queue.
+## ML Pipeline
+MP3 → librosa features → Mood classifier → Similarity scoring → Radio queue
 
-## Setup Embeddings
-- Train in Colab (audio features → vectors)
-- Export `track_embeddings.json` format:
+## Future Work
+- Playlist Room (multi-user queue)
+- Cloud deploy
+- Real NN classifier
+
+BTech CSE 3rd Year | PTU Mohali

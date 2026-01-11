@@ -25,14 +25,15 @@ Key Files:
 **Live Demo**: Backend `python main.py` → Frontend Live Server `index.html`
 
 ## 🚀 Quick Start
-```bash
+bash
 git clone https://github.com/ShreyaKaunla/MusicHub.git
 cd MusicHub
 
 pip install -r requirements.txt
 python main.py          # Backend: localhost:8000
 
-# Frontend: VS Code → index.html → Open with Live Server```
+# Frontend: VS Code → index.html → Open with Live Server
+
 **Flow**: Scan folder → Auto mood playlists!
 
 ## 🧠 ML Pipeline

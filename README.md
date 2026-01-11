@@ -39,13 +39,16 @@ python main.py          # Backend: localhost:8000
 
 ## 🧠 ML Pipeline
 MP3 File → librosa.load() → Features (tempo, RMS, MFCC13)
+
 ↓
 Rule Classifier:
   tempo>130 | energy>0.15 → party
   tempo<105 | energy<0.12 → chill  
   105≤tempo≤125 | energy<0.14 → romantic
+  
 ↓
 Frontend: mood*cosine + tempo_bucket + artist_bonus - repeat_penalty
+
 ↓
 Radio Queue (20 songs, YouTube-style diversity)
 

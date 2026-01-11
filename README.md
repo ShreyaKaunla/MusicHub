@@ -43,7 +43,7 @@ Rule Classifier:
 ↓
 Frontend: mood*cosine + tempo_bucket + artist_bonus - repeat_penalty
 ↓
-Radio Queue (20 songs, YouTube-style diversity)
+Radio Queue (20 songs, YouTube-style diversity)```
 
 ## Future Work
 Playlist Room: Multi-user shared queue (WebSocket sync)

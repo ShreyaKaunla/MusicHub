@@ -88,16 +88,22 @@ const moodVectors = {
     angry: [0.2, 0.9, 0.4, 0.5, 1.0, 0.7, 0.3]
 };
 
-function dot(a, b) {
-    return a.reduce((sum, x, i) => sum + x * b[i], 0);
+function cosineSimilarity(vecA, vecB) {
+    if (!vecA || !vecB) return 0;
+    let dotProduct = 0;
+    let normA = 0;
+    let normB = 0;
+    for (let i = 0; i < vecA.length; i++) {
+        dotProduct += vecA[i] * vecB[i];
+        normA += vecA[i] * vecA[i];
+        normB += vecB[i] * vecB[i];
+    }
+    return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
 }
 
-function moodSimilarity(m1, m2) {
-    const v1 = moodVectors[m1] || moodVectors.chill;
-    const v2 = moodVectors[m2] || moodVectors.chill;
-    return dot(v1, v2) / (Math.sqrt(dot(v1,v1)) * Math.sqrt(dot(v2,v2)));  // Cosine sim
+function getVibeSimilarity(songA, songB) {
+    return cosineSimilarity(songA.vector, songB.vector);
 }
-
 
 // Demo library
 let library = {
@@ -125,83 +131,46 @@ btnscan.addEventListener('click', () => filePicker.click());
 
 // ✅ SINGLE async handler with backend ML
 filePicker.addEventListener('change', async (e) => {
-  console.log('🎯 Change event fired');
-  console.log('Raw files:', filePicker.files);
-  const files = Array.from(filePicker.files || []);
-  console.log('📁 Files array length:', files.length);
-  if (files.length) console.log('First 3:', files.slice(0,3).map(f => ({name: f.name, type: f.type, size: f.size})));
-  
-  if (!files.length) {
-    console.error('❌ Zero files after select - check folder has MP3s');
-    return;
-  }
-  
-  const newSongs = [];
-  let idCounter = library.songs.length;
+    const files = Array.from(filePicker.files || []);
+    if (!files.length) return;
 
-  for (let i = 0; i < files.length; i++) {
-    const file = files[i];
-    const title = file.name.replace(/\.[^/.]+$/, "");
-    console.log(`Processing ${i+1}/${files.length}: ${title} ${file.type}`);
-    
-    if (!file.type.startsWith('audio/') && !file.name.toLowerCase().match(/\.(mp3|wav|m4a)$/i)) continue;
-    
-    let parts = title.split(' - ');
-    const artist = parts[0] || 'Unknown Artist';
-    
-    let mood = 'chill';
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      const resp = await fetch('http://127.0.0.1:8000/embed', {method: 'POST', body: formData});
-      
-      if (resp.ok) {
-        const data = await resp.json();
-        mood = data.mood || 'chill';
-        console.log(`✅ ${title}: AI Mood "${mood}" (tempo:${data.tempo?.toFixed(0)}, energy:${data.energy?.toFixed(2)})`);
+    const newSongs = [];
+    for (let i = 0; i < files.length; i++) {
+        const file = files[i];
         
-        newSongs.push({
-          id: idCounter++,
-          title, artist,
-          album: 'Local Files',
-          mood,
-          url: URL.createObjectURL(file),
-          mfcc0: data.mfcc0 || -200,
-          zcr: data.zcr || 0.1,
-          tempo: data.tempo || 100,
-          energy: data.energy || 0.1
-        });
-      } else {
-        newSongs.push({id: idCounter++, title, artist: 'Unknown', mood: 'chill', url: URL.createObjectURL(file), album: 'Local Files'});
-      }
-    } catch (e) {
-      newSongs.push({id: idCounter++, title, artist: 'Unknown', mood: 'chill', url: URL.createObjectURL(file), album: 'Local Files'});
+        // 1. Skip system files (like desktop.ini) to prevent backend crashes
+        if (!file.type.startsWith('audio/')) continue;
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            console.log(`Scanning ${i+1}/${files.length}: ${file.name}`);
+            // 2. Request the 16-parameter embedding from your main.py
+            const res = await fetch('http://127.0.0.1:8000/embed', { method: 'POST', body: formData });
+            const data = await res.json();
+
+            newSongs.push({
+                id: Date.now() + i,
+                title: file.name.replace(/\.[^/.]+$/, ""),
+                artist: "Local Artist",
+                album: "Local Folder",
+                vector: data.vector, // The vibe DNA [3]
+                mood: data.mood,     // The category (Party, Sad, etc.)
+                url: URL.createObjectURL(file)
+            });
+        } catch (err) {
+            console.error("Scanning failed for:", file.name, err);
+        }
     }
-  }
 
-  if (!newSongs.length) {
-    alert('No audio files. Add MP3s.');
-    return;
-  }
-
-  
-  
-  library.songs = [...library.songs, ...newSongs];
-    // Append to demo
-  classifyMoods(); 
-  renderAutoPlaylists();
-  filteredSongs = [...library.songs];
-  console.log('🎉 Total library now:', library.songs.length, 'songs');
-  
-  renderSongs(filteredSongs);
-  renderArtists();
-  renderAlbums();
-  renderAutoPlaylists();
-  renderUserPlaylistsPanel();
-  switchView('songs');
+    // 3. Update the app state
+    library.songs = [...library.songs, ...newSongs];
+    classifyMoods(); 
+    renderAutoPlaylists(); 
+    renderSongs(library.songs);
+    console.log(`✅ Scan complete. Total library: ${library.songs.length} songs.`);
 });
-
-
 
 const PLAYLISTS_KEY = 'localMusicHubPlaylistsV1';
 
@@ -254,38 +223,20 @@ sheetHandle.addEventListener('click', e => {
 let filteredSongs = [...library.songs];
 
 function renderSongs(list) {
-  songsList.innerHTML = '';
-  list.forEach(song => {
-    const li = document.createElement('li');
-    li.className = 'list-item';
-    li.dataset.songId = song.id;
-    li.innerHTML = `
-      <div class="song-main">
-        <div class="song-title">${song.title}</div>
-        <div class="song-sub">${song.artist} • ${song.album}</div>
-      </div>
-      <div class="song-actions">
-        <div class="song-duration">${formatTime(song.duration)}</div>
-        <button class="icon-btn add-to-queue-btn">＋</button>
-      </div>
-    `;
-
-    // Play immediately on row click
-    li.querySelector('.song-main').addEventListener('click', e => {
-      e.stopPropagation();
-      startRadioFromSong(song);
+    songsList.innerHTML = ''; [15]
+    list.forEach(song => {
+        const li = document.createElement('li');
+        li.className = 'list-item';
+        li.addEventListener('click', () => startRadioFromSong(song)); // FIX: Song title click [23]
+        li.innerHTML = `
+            <div class="song-main">
+                <div class="song-title">${song.title}</div>
+                <div class="song-sub">${song.artist} • ${song.album}</div>
+            </div>
+            <div class="song-duration">${formatTime(song.duration)}</div>`;
+        songsList.appendChild(li);
     });
-
-    // Add to queue on plus button
-    li.querySelector('.add-to-queue-btn').addEventListener('click', e => {
-      e.stopPropagation();
-      addToQueue(song);
-    });
-
-    songsList.appendChild(li);
-  });
 }
-
 function addToQueue(song) {
   if (!song) return;
 
@@ -302,37 +253,25 @@ function addToQueue(song) {
 }
 
 
-function scoreRelated(base, candidate, history) {
-    if (base.id === candidate.id) return 10000;
-    
+function scoreRelated(base, candidate, history = []) {
+    if (base.id === candidate.id) return -999;
     let score = 0;
-    
-    // FAST mood match
-    score += moodSimilarity(base.mood, candidate.mood) * 50;
-    
-    // Tempo bucket match (YouTube style)
-    const baseTempo = base.tempo || 100;
-    const candTempo = candidate.tempo || 100;
-    const tempoBucket = Math.floor(baseTempo / 20) * 20;
-    if (Math.abs(candTempo - tempoBucket) < 25) score += 30;
-    
-    // Energy similarity
-    const eDiff = Math.abs((base.energy || 0.1) - (candidate.energy || 0.1));
-    score += Math.max(0, 25 - eDiff * 200);
-    
-    // Artist (40% weight)
-    if (base.artist === candidate.artist) score += 40;
-    
-    // MFCC timbre
-    const mDiff = Math.abs((base.mfcc0 || -200) - (candidate.mfcc0 || -200));
-    score += Math.max(0, 20 - mDiff * 0.1);
-    
-    // NO repeats (YouTube diversity)
+
+    // Use the 16-parameter vector similarity
+    const vibeSim = getVibeSimilarity(base, candidate);
+    score += vibeSim * 150; // High weight for the "vibe"
+
+    // Bonus for same artist/album
+    if (base.artist === candidate.artist) score += 70;
+    if (base.album === candidate.album) score += 40;
+
+    // Penalty for recently played artists to keep it fresh
     const recentArtists = history.slice(-5).map(h => h.artist);
     if (recentArtists.includes(candidate.artist)) score -= 50;
-    
+
     return score;
 }
+
 
 
 function buildRadioQueueFromSong(song) {
@@ -357,44 +296,27 @@ function buildRadioQueueFromSong(song) {
 
 
 function classifyMoods() {
-    const autoMoods = ['party', 'sad', 'chill', 'happy', 'romantic', 'soothing', 'angry'];
-    autoMoods.forEach(mood => library.playlists[mood].songs = []);
-    
-    library.songs.forEach(song => {
-        if (song.mood) {
-            if (library.playlists[song.mood]) {
-                library.playlists[song.mood].songs.push(song.id);
-            }
-        }
+    const autoMoods = ['party', 'sad', 'chill', 'happy', 'romantic', 'soothing', 'angry']; [17]
+    autoMoods.forEach(mood => {
+        library.playlists[mood].songs = library.songs.filter(s => s.mood === mood).map(s => s.id);
     });
 }
 
 function renderAutoPlaylists() {
-    classifyMoods();  // Auto-assign first
-    autoGrid.innerHTML = '';
-    
-    const allMoods = ['party', 'sad', 'chill', 'happy', 'romantic', 'soothing', 'angry'];
-    allMoods.forEach(mood => {
-        const pl = library.playlists[mood];
-        const count = pl.songs.length;
+    classifyMoods();
+    autoGrid.innerHTML = ''; [17]
+    Object.values(library.playlists).filter(pl => pl.system).forEach(pl => {
+        if (pl.songs.length === 0) return;
         const card = document.createElement('div');
-        card.className = 'playlist-card';
-        card.dataset.mood = mood;
-        card.innerHTML = `
-            <div class="playlist-name">${pl.name}</div>
-            <div class="playlist-art-placeholder"></div>
-            <div class="playlist-meta">${count} songs • Auto mood</div>
-            <div class="playlist-count">${count}</div>
-        `;
+        card.className = 'playlist-card'; // Style this in CSS
+        card.innerHTML = `<h4>${pl.name}</h4><p>${pl.songs.length} tracks</p>`;
         card.addEventListener('click', () => {
-            const songs = pl.songs.map(id => library.songs.find(s => s.id === id));
-            renderSongs(songs);
-            switchView('songs');
+            selectPlaylist(pl.id); [35]
+            switchView('playlists'); [13]
         });
         autoGrid.appendChild(card);
     });
 }
-
 
 function renderArtists() {
   const map = new Map();
@@ -527,11 +449,18 @@ globalSearch.addEventListener('input', e => {
 
 /* ---------- mood radio ---------- */
 
-function moodSimilarity(m1, m2) {
-  const v1 = moodVectors[m1] || moodVectors.chill;
-  const v2 = moodVectors[m2] || moodVectors.chill;
-  return dot(v1, v2);  // 1=exact, 0=opposite
+function moodSimilarity(m1, m2, songA, songB) {
+    // If the songs have the 16-D vectors, use the advanced math
+    if (songA?.vector && songB?.vector) {
+        return cosineSimilarity(songA.vector, songB.vector);
+    }
+    // Fallback to the static categories in your source
+    const v1 = moodVectors[m1] || moodVectors.chill;
+    const v2 = moodVectors[m2] || moodVectors.chill;
+    return cosineSimilarity(v1, v2); 
 }
+
+// Then, in buildRadioQueueFromSong, lower the 0.8 threshold to 0.5
 
 function scoreRelated(base, candidate, history) {
     if (base.id === candidate.id) return 10000;
@@ -562,23 +491,26 @@ function scoreRelated(base, candidate, history) {
 
 
 function buildRadioQueueFromSong(baseSong) {
-  // STRICT filter: same mood only (beats match!)
-  const candidates = library.songs.filter(s => 
-    s.id !== baseSong.id && moodSimilarity(baseSong.mood, s.mood) > 0.8  // High threshold
-  );
-  console.log('Radio candidates (same mood):', candidates.length);
-  
-  // Score & sort
-  const scored = candidates.map(s => ({
-    song: s,
-    score: scoreRelated(baseSong, s, playerState.queue)
-  }));
-  scored.sort((a, b) => b.score - a.score);
-  
-  // Top 20 + base first
-  const queue = [baseSong, ...scored.slice(0, 19).map(x => x.song)];
-  console.log('Radio queue moods:', queue.map(s => s.mood));
-  return queue;
+    
+    if (!baseSong) return [];
+
+    // The filter below was causing the error because 'baseSong' 
+    // needs to be the parameter name of the function.
+    const candidates = library.songs.filter(s => 
+        s.id !== baseSong.id && moodSimilarity(baseSong.mood, s.mood, baseSong, s) > 0.5
+    );
+
+    // 2. Score the candidates
+    const scored = candidates.map(s => ({
+        song: s,
+        score: scoreRelated(baseSong, s, playerState.queue || [])
+    }));
+
+    scored.sort((a, b) => b.score - a.score);
+
+    // 3. THE RETURN MUST BE LAST (This was line 510)
+    return [baseSong, ...scored.slice(0, 19).map(x => x.song)];
+    
 }
 
 function startRadioFromSong(song) {
@@ -1001,4 +933,3 @@ renderAlbums();
 renderUserPlaylistsPanel();
 switchView('scan');
 });
-

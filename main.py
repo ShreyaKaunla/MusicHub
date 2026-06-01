@@ -1,71 +1,48 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import librosa
-import io
 import numpy as np
+import io
+import traceback
 
 app = Flask(__name__)
-CORS(app)
+# Configured for standard development ports [3, 4]
+CORS(app, origins=["http://localhost:8001", "http://127.0.0.1:5500", "http://localhost:5500", "*"])
 
 @app.route('/embed', methods=['POST'])
-def embed():
-    if 'file' not in request.files:
-        return jsonify({"error": "No file"}), 400
-    
-    file = request.files['file']
+def get_mood_embedding():
     try:
-        file.seek(0)
-        y, sr = librosa.load(io.BytesIO(file.read()), sr=22050, duration=30)
-        
-        # Extract features [web:10][web:14]
+        file = request.files['file']
+        # Load first 30s of audio [3]
+        try:
+            y, sr = librosa.load(io.BytesIO(file.read()), duration=30)
+        except Exception:
+            return jsonify({"error": "Unsupported audio format"}), 400
+
+        # Feature Extraction: Intensity, Texture, and Brightness
         tempo, _ = librosa.beat.beat_track(y=y, sr=sr)
-        tempo = float(tempo)
-        
-        rms = librosa.feature.rms(y=y)[0]
-        energy = float(np.mean(rms))
-        
-        mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13)
-        mfcc_mean = np.mean(mfcc, axis=1)
-        
-        chroma = librosa.feature.chroma_stft(y=y, sr=sr)
-        chroma_mean = np.mean(chroma, axis=1)
-        
-        # Rule-based mood classification [web:31]
-        if tempo > 130 or (tempo > 110 and energy > 0.15):
-            mood = "party"
-            confidence = 0.85
-        elif tempo < 105 and energy < 0.12:
-            mood = "chill"
-            confidence = 0.80
-        elif 105 <= tempo <= 125 and energy < 0.14:
-            mood = "romantic"
-            confidence = 0.82
-        elif energy > 0.20:
-            mood = "energetic"
-            confidence = 0.78
-        else:
-            mood = "soothing"
-            confidence = 0.75
-        
-        return jsonify({
-            "mood": mood,
-            "confidence": confidence,
-            "tempo": tempo,
-            "energy": energy,
-            "mfcc0": float(mfcc_mean[0]) if len(mfcc_mean) > 0 else -200,
-            "zcr": float(librosa.feature.zero_crossing_rate(y)[0].mean())
-        })
-    
+        float_tempo = float(np.mean(tempo))
+        energy = float(np.mean(librosa.feature.rms(y=y)))
+        centroid = float(np.mean(librosa.feature.spectral_centroid(y=y, sr=sr)))
+        flatness = float(np.mean(librosa.feature.spectral_flatness(y=y)))
+        mfccs = np.mean(librosa.feature.mfcc(y=y, sr=sr, n_mfcc=12), axis=1).tolist()
+
+        # Build 16-parameter vector
+        vector = [float_tempo/200, energy*5, flatness*10, centroid/5000] + mfccs
+
+        # Heuristics for the 7 system categories [5, 6]
+        if float_tempo > 130 and energy > 0.07: mood = "party"
+        elif energy > 0.08: mood = "angry"
+        elif float_tempo > 115 and energy > 0.05: mood = "happy"
+        elif energy < 0.015: mood = "soothing"
+        elif energy < 0.025: mood = "sad"
+        elif float_tempo < 100: mood = "chill"
+        else: mood = "romantic"
+
+        return jsonify({"vector": vector, "mood": mood, "tempo": round(float_tempo, 1)})
     except Exception as e:
-        # Improved fallback with dummy real-like values
-        return jsonify({
-            "mood": "chill",
-            "confidence": 0.5,
-            "tempo": 100.0,
-            "energy": 0.10,
-            "mfcc0": -200.0,
-            "zcr": 0.1
-        })
+        print(traceback.format_exc())
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(host='127.0.0.1', port=8000, debug=True)
+    app.run(host='0.0.0.0', port=8000, debug=True)

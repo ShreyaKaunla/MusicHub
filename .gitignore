@@ -1,0 +1,17 @@
+.env/
+.venv/
+venv/
+env/
+*-env*/
+site-packages/
+__pycache__/
+node_modules/
+dist/
+*.mp3
+*.db
+*.db-wal
+*.db-shm
+settings.json
+demo_music_src/
+!backend/demo_music/*.mp3
+!backend/demo_data/sql_db.db

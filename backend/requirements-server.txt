@@ -1,0 +1,7 @@
+# Runtime dependencies of the HOSTED server only (no librosa / torch: everything heavy is precomputed offline)
+fastapi>=0.111,<1.0
+uvicorn>=0.30
+pydantic>=2.7,<3
+numpy>=1.26,<2.0
+mutagen>=1.47
+tinytag>=1.10,<3

@@ -1,0 +1,4 @@
+# Extra dependencies for BUILDING the library offline (not needed on the hosted server)
+-r requirements.txt
+torch>=2.2
+transformers>=4.40

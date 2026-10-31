@@ -1,3 +1,4 @@
+import hashlib
 import os
 import urllib.parse
 import sqlite3 as sql
@@ -7,7 +8,7 @@ from typing import List
 import numpy as np
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response, FileResponse, RedirectResponse
+from fastapi.responses import Response, FileResponse
 from mutagen.mp3 import MP3
 from mutagen.id3 import ID3, APIC
 from pydantic import BaseModel
@@ -218,12 +219,26 @@ def stream_audio(filename: str, request: Request):
     return FileResponse(full_audio_path, media_type="audio/mpeg", headers=headers)
 
 
+def _placeholder_cover(name: str) -> Response:
+    """Songs without embedded artwork get a generated gradient cover, colour picked from the file name."""
+    h = hashlib.md5(name.encode("utf-8", "ignore")).digest()
+    hue1, hue2 = h[0] * 360 // 256, (h[0] * 360 // 256 + 40 + h[1] % 60) % 360
+    svg = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">'
+           '<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">'
+           f'<stop offset="0" stop-color="hsl({hue1},55%,38%)"/>'
+           f'<stop offset="1" stop-color="hsl({hue2},60%,22%)"/></linearGradient></defs>'
+           '<rect width="200" height="200" fill="url(#g)"/>'
+           '<text x="100" y="125" font-size="90" text-anchor="middle" fill="rgba(255,255,255,.55)" '
+           'font-family="Segoe UI Symbol,Arial,sans-serif">&#9834;</text></svg>')
+    return Response(content=svg, media_type="image/svg+xml", headers={"Cache-Control": "public, max-age=86400"})
+
+
 @app.get("/api/cover/{filename:path}")
 def get_cover_art(filename: str):
     clean_name = _clean(filename)
     full_audio_path = os.path.join(get_active_music_folder(), clean_name)
     if not os.path.exists(full_audio_path):
-        return RedirectResponse(url="https://unsplash.com")
+        return _placeholder_cover(clean_name)
     try:
         audio = MP3(full_audio_path, ID3=ID3)
         if audio.tags:
@@ -232,7 +247,7 @@ def get_cover_art(filename: str):
                     return Response(content=tag.data, media_type=tag.mime)
     except Exception as e:
         print(f"Cover extraction skipped for {filename}: {e}")
-    return RedirectResponse(url="https://unsplash.com")
+    return _placeholder_cover(clean_name)
 
 
 # ---------------------------------------------------------------- health + client config

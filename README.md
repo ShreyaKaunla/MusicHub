@@ -6,6 +6,10 @@ pretrained audio model (CLAP), and gives you a Spotify-style player with an endl
 
 Everything runs on your computer: your music and listening history never leave it.
 
+> **Try it instantly — no music files needed:** the hosted demo at **https://music-hub-demo.vercel.app** is seeded with
+> demo songs and precomputed clusters, so you can explore the recommender without uploading anything. This repo is the
+> local-first edition you run against your own library.
+
 > **Desktop app:** run `build_desktop.bat` and `build_installer.bat` to produce `MusicHub-1.0.0-Setup.exe` — a regular
 > Windows installer that friends can download and install. It scans their music folder, fingerprints every song and
 > starts recommending out of the box.

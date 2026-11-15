@@ -2,12 +2,18 @@
 # Build: cd backend && ..\build-env\Scripts\python.exe -m PyInstaller MusicHub.spec --noconfirm
 # Expects backend/web/ (built UI) and backend/models/clap_audio_int8.onnx to exist.
 # -*- mode: python ; coding: utf-8 -*-
+import os
+
 from PyInstaller.utils.hooks import collect_all
 
 datas = [
     ("web", "web"),          # the built React UI, served by the backend itself
-    ("models", "models"),    # quantised CLAP audio encoder
 ]
+# bundle only the runtime model (the fp32 export stays dev-only: it's >100 MB)
+for _name in ("clap_audio_int8.onnx",):
+    _p = os.path.join(SPECPATH, "models", _name)
+    if os.path.isfile(_p):
+        datas.append((_p, "models"))
 binaries = []
 hiddenimports = []
 

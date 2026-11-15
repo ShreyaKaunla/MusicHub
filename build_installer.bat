@@ -9,6 +9,7 @@ if not exist "dist\MusicHub\MusicHub.exe" (
 
 set "ISCC=%ProgramFiles(x86)%\Inno Setup 6\ISCC.exe"
 if not exist "%ISCC%" set "ISCC=%ProgramFiles%\Inno Setup 6\ISCC.exe"
+if not exist "%ISCC%" set "ISCC=%LocalAppData%\Programs\Inno Setup 6\ISCC.exe"
 if not exist "%ISCC%" (
     echo [!] Inno Setup 6 not found. Install it with:  winget install JRSoftware.InnoSetup
     exit /b 1

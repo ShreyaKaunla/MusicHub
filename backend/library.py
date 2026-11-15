@@ -5,7 +5,6 @@ pipeline: tags -> fingerprints -> clusters -> pretrained embeddings -> (mood pla
 Progress is exposed at /api/library/status so the UI can show it, and nothing fails silently:
 if embeddings can't be computed (e.g. torch missing) the reason is reported there.
 """
-import importlib.util
 import os
 import sqlite3 as sql
 import threading
@@ -15,9 +14,10 @@ from collections import Counter
 from fastapi import APIRouter, HTTPException
 
 import config
+import embeddings
 import similarity
 import taste
-from config import ALLOW_ANALYSIS, DB_PATH, get_active_music_folder
+from config import DB_PATH, get_active_music_folder
 
 router = APIRouter()
 POLL_SECONDS = 15
@@ -33,7 +33,7 @@ def _base(p):
 
 
 def embeddings_available():
-    return all(importlib.util.find_spec(m) is not None for m in ("torch", "transformers"))
+    return embeddings.available()
 
 
 def _counts():
@@ -126,11 +126,11 @@ def run_pipeline():
                 status.update(stage="embedding", done=0, total=0)
                 scan.embed_new(on_progress=_progress)
             else:
-                notes.append("Smart recommendations are off for new songs: run "
-                             "`pip install -r requirements-ml.txt` in the backend environment.")
+                notes.append("Smart (CLAP) recommendations are off for new songs: the AI audio model "
+                             "isn't available in this installation.")
             similarity.invalidate()
             taste.invalidate()
-            if ALLOW_ANALYSIS and _has_mood_data():   # only if you already use mood playlists
+            if _has_mood_data():   # only if you already use mood playlists
                 status.update(stage="moods", done=0, total=0)
                 import extras
                 extras.progress.update(running=True, done=0, total=0)
@@ -183,6 +183,4 @@ def library_status():
 
 @router.post("/api/library/sync")
 def library_sync():
-    if not ALLOW_ANALYSIS:
-        raise HTTPException(403, "Library syncing is disabled on this server.")
     return {"status": "started" if start_sync() else "already running"}

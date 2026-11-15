@@ -6,11 +6,10 @@ from typing import List, Optional
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel
 
-from config import DB_PATH, SINGLE_USER
+from config import DB_PATH
 from identity import owner
 
 router = APIRouter()
-MAX_PLAYLISTS = 25   # per visitor on the public demo
 MAX_IDS = 2000
 
 
@@ -34,14 +33,9 @@ def _playlist(cur, pid, who, edit=False):
     row = cur.execute("SELECT owner, is_mood FROM user_playlists WHERE id=?", (pid,)).fetchone()
     if not row or row[0] not in ("", who):
         raise HTTPException(404, "Playlist not found")
-    if edit and row[0] != who and not (row[1] and SINGLE_USER):
+    if edit and row[0] != who and not row[1]:  # auto-generated mood playlists are read-only
         raise HTTPException(403, "This playlist is read-only")
     return bool(row[1])
-
-
-def _check_cap(cur, who):
-    if not SINGLE_USER and cur.execute("SELECT COUNT(*) FROM user_playlists WHERE owner=?", (who,)).fetchone()[0] >= MAX_PLAYLISTS:
-        raise HTTPException(400, f"Playlist limit reached ({MAX_PLAYLISTS}).")
 
 
 # ------------------------------------------------------------------ likes
@@ -102,7 +96,6 @@ def create_manual_playlist(request: CreateManualPlaylistRequest, x_client_id: Op
     c = _db()
     cur = c.cursor()
     try:
-        _check_cap(cur, who)
         valid = {r[0] for r in cur.execute("SELECT id FROM tracks")}
         ids = [t for t in dict.fromkeys(request.track_ids) if t in valid][:MAX_IDS]
         cur.execute("INSERT INTO user_playlists (name, owner) VALUES (?, ?)", (name, who))
@@ -131,7 +124,6 @@ def snapshot_ai_queue(request: SaveQueueRequest, x_client_id: Optional[str] = He
         if row:
             pid = row[0]
         else:
-            _check_cap(cur, who)
             cur.execute("INSERT INTO user_playlists (name, owner) VALUES (?, ?)", (name, who))
             pid = cur.lastrowid
         have = {r[0] for r in cur.execute("SELECT track_id FROM playlist_tracks WHERE playlist_id=?", (pid,))}

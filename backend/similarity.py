@@ -1,4 +1,4 @@
-"""Fast nearest-neighbour search over stored embeddings. NumPy only (safe for the hosted server)."""
+"""Fast nearest-neighbour search over stored embeddings. NumPy only."""
 import os
 import sqlite3 as sql
 import threading

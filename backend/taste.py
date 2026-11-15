@@ -17,7 +17,7 @@ from typing import Optional
 import numpy as np
 from fastapi import APIRouter, Header, HTTPException
 
-from config import DB_PATH, SINGLE_USER
+from config import DB_PATH
 from identity import owner
 
 router = APIRouter()
@@ -102,11 +102,10 @@ def _load_events(client_id):
     except sql.OperationalError:
         ev = []
     seeds = set()
-    if SINGLE_USER:  # desktop build: your existing likes count as taste signals too
-        try:
-            seeds = {r[0] for r in c.execute("SELECT track_id FROM likes WHERE owner=?", (client_id,))}
-        except sql.OperationalError:
-            pass
+    try:  # your existing likes count as taste signals too
+        seeds = {r[0] for r in c.execute("SELECT track_id FROM likes WHERE owner=?", (client_id,))}
+    except sql.OperationalError:
+        pass
     c.close()
     return ev, seeds
 

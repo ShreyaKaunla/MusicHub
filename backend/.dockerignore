@@ -1,8 +1,0 @@
-.env/
-.venv/
-venv/
-__pycache__/
-*.pyc
-tests/
-sql_db.db
-demo_music_src/

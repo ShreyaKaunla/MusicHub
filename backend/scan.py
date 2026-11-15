@@ -107,7 +107,7 @@ def run_scan(settle=0):
 def fingerprint(path):
     """Swappable feature extractor: returns a float32 vector or None on failure."""
     try:
-        import librosa  # lazy: the hosted server never needs it
+        import librosa  # lazy: only needed when fingerprinting new songs
         try:
             y, sr = librosa.load(path, sr=None, mono=True, dtype=np.float32)
         except Exception:

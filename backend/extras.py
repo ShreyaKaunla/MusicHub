@@ -1,6 +1,6 @@
 """Mood analysis and sorting (offline/desktop feature). Likes and playlists live in userdata.py.
 
-librosa is imported lazily so the hosted server (which never analyses audio) doesn't need it.
+librosa is imported lazily inside the analysis helpers that need it.
 """
 import os
 import sqlite3 as sql
@@ -10,7 +10,7 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException
 from tinytag import TinyTag
 from concurrent.futures import ProcessPoolExecutor
 
-from config import DB_PATH, ALLOW_ANALYSIS, get_active_music_folder
+from config import DB_PATH, get_active_music_folder
 from identity import ensure_owner_schema
 
 router = APIRouter()
@@ -198,8 +198,6 @@ def _run_analysis():
 
 @router.post("/api/analyze-moods")
 def analyze_moods(bg: BackgroundTasks):
-    if not ALLOW_ANALYSIS:
-        raise HTTPException(403, "Mood analysis is disabled on this server (precomputed offline).")
     ensure_extra_schema()
     if progress["running"]:
         return {"status": "already running"}

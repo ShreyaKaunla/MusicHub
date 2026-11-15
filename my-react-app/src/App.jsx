@@ -1,17 +1,9 @@
 import React, { useEffect, useState, useRef, useLayoutEffect } from 'react';
 
-const API = `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api`;
-// Anonymous per-browser id: lets the backend build a taste profile without any login.
-const CLIENT_ID = (() => {
-  try {
-    let id = localStorage.getItem('musichub_client_id');
-    if (!id) { id = crypto.randomUUID(); localStorage.setItem('musichub_client_id', id); }
-    return id;
-  } catch { return `anon-${Math.random().toString(36).slice(2)}`; }
-})();
-const CLIENT_H = { 'X-Client-Id': CLIENT_ID };
-// Every backend call identifies this browser, so likes/playlists/history stay per visitor.
-const apiFetch = (url, opts = {}) => fetch(url, { ...opts, headers: { ...CLIENT_H, ...(opts.headers || {}) } });
+// Dev: the Vite server talks to the backend on :8000. Packaged/desktop builds: the UI is served BY
+// the backend itself, so a relative "/api" is correct (no origin hard-coded into the bundle).
+const API = (import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:8000' : '')) + '/api';
+const apiFetch = (url, opts = {}) => fetch(url, opts);
 const JSON_H = { 'Content-Type': 'application/json' };
 const FIELD = { albums: 'album', artists: 'artist', languages: 'language' };
 const cover = (s) => `${API}/cover/${encodeURIComponent(s.file_path)}`;
@@ -220,8 +212,6 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [an, setAn] = useState({ running: false, done: 0, total: 0 });
   const [home, setHome] = useState(null);
-  const [cfg, setCfg] = useState({ allow_folder_pick: true, allow_analysis: true, demo: false });
-  const [waking, setWaking] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false); // the player: popped up (true) or popped down (false)
   const [drag, setDrag] = useState(0);
   const [dragging, setDragging] = useState(false);
@@ -246,12 +236,11 @@ export default function App() {
   const loadSongs = () => apiFetch(`${API}/songs`).then((r) => r.json()).then((d) => setSongs(d || [])).catch(console.error);
   const loadLikes = () => apiFetch(`${API}/likes`).then((r) => r.json()).then((d) => setLiked(new Set(d))).catch(() => {});
   const loadUserPls = () => apiFetch(`${API}/user-playlists`).then((r) => r.json()).then(setUserPls).catch(() => {});
-  const loadHome = () => apiFetch(`${API}/home`, { headers: CLIENT_H }).then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); })
+  const loadHome = () => apiFetch(`${API}/home`).then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); })
     .then(setHome).catch(() => setHome({ error: true, sections: [] }));
-  const loadConfig = () => apiFetch(`${API}/config`).then((r) => r.json()).then(setCfg).catch(() => {});
 
   useEffect(() => {
-    loadSongs(); loadLikes(); loadUserPls(); loadConfig();
+    loadSongs(); loadLikes(); loadUserPls();
     apiFetch(`${API}/analyze-moods/status`).then((r) => r.json()).then(setAn).catch(() => {});
     const close = (e) => { if (!e.target.closest('.menu-wrap')) setMenuId(null); };
     document.addEventListener('click', close);
@@ -299,7 +288,7 @@ export default function App() {
 
   // ---- listening history: feeds the taste profile ----
   const logEvent = (song, event, seconds = 0) => {
-    apiFetch(`${API}/events`, { method: 'POST', headers: { ...JSON_H, ...CLIENT_H }, body: JSON.stringify({ track_id: song.id, event, seconds }) }).catch(() => {});
+    apiFetch(`${API}/events`, { method: 'POST', headers: JSON_H, body: JSON.stringify({ track_id: song.id, event, seconds }) }).catch(() => {});
   };
   // Ends the current listen. Leaving after 85% of the song counts as finished, earlier counts as a skip.
   const closeListen = (kind) => {
@@ -334,13 +323,10 @@ export default function App() {
     if (p && ((p.running && !st.running) || p.counts?.tracks !== st.counts?.tracks)) { loadSongs(); loadUserPls(); loadHome(); }
   };
   useEffect(() => {
-    if (cfg.demo) return;
     refreshLib();
     const t = setInterval(refreshLib, 6000);
     return () => clearInterval(t);
-  }, [cfg.demo]);
-  // Free hosting sleeps when idle: if nothing has loaded after a few seconds, tell the visitor why.
-  useEffect(() => { const t = setTimeout(() => setWaking(true), 3500); return () => clearTimeout(t); }, []);
+  }, []);
 
   // Plays a whole shelf (Daily Mix, Discover, ...) as the normal queue
   const playShelf = (list, i = 0) => {
@@ -614,7 +600,7 @@ export default function App() {
         {box('Search playlists…', bq, setBq)}
         <div style={{ color: C.dim, fontSize: 12, margin: '12px 0' }}>🎭 MOOD PLAYLISTS</div>
         {moods.length ? <div style={grid}>{moods.map(plCard)}</div>
-          : <p style={{ color: C.dim, fontSize: 13 }}>{cfg.allow_analysis ? 'Not sorted yet. Use “Sort by mood” at the top.' : 'No mood playlists yet.'}</p>}
+          : <p style={{ color: C.dim, fontSize: 13 }}>Not sorted yet. Use "Sort by mood" at the top.</p>}
         <div style={{ color: C.dim, fontSize: 12, margin: '22px 0 12px' }}>YOUR PLAYLISTS</div>
         <div style={grid}>
           {mine.map(plCard)}
@@ -742,22 +728,15 @@ export default function App() {
   return (
     <div style={{ height: '100vh', background: C.bg, color: '#fff', fontFamily: '"Segoe UI", Roboto, sans-serif', display: 'flex', flexDirection: 'column' }}>
       <style>{css}</style>
-      {waking && songs.length === 0 && (
-        <div style={{ background: '#3d2f1f', padding: '10px 24px', fontSize: 14 }}>
-          ⏳ Waking up the demo server… free hosting sleeps when idle, so the first load can take up to a minute.
-        </div>
-      )}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 24px', borderBottom: '1px solid #282828' }}>
         <h2 style={{ margin: 0 }}>MusicHub</h2>
         <div style={{ display: 'flex', gap: 10, minWidth: 0 }}>
-          {cfg.demo && <span style={{ fontSize: 12, color: C.dim, alignSelf: 'center' }}>Demo library · Creative Commons music</span>}
           {sync && <span title={sync[0]} style={{ fontSize: 12, color: sync[1], alignSelf: 'center', maxWidth: 420, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sync[0]}</span>}
-          {cfg.allow_analysis && <button onClick={startAnalysis} disabled={an.running} style={{ ...btn, borderRadius: 20, background: '#2a2a2a' }}>
-            {an.running ? `Analysing ${an.done}/${an.total}…` : '🎭 Sort by mood'}</button>}
-          {cfg.allow_folder_pick && <>
+          <button onClick={startAnalysis} disabled={an.running} style={{ ...btn, borderRadius: 20, background: '#2a2a2a' }}>
+            {an.running ? `Analysing ${an.done}/${an.total}…` : '🎭 Sort by mood'}</button>
           <input ref={folderRef} type="file" webkitdirectory="" directory="" multiple onChange={pickFolder} style={{ display: 'none' }} />
           <button onClick={() => folderRef.current.click()} disabled={busy} style={{ ...btn, background: C.green, borderRadius: 20 }}>
-            {busy ? 'Scanning…' : '📁 Choose folder'}</button></>}
+            {busy ? 'Scanning…' : '📁 Choose folder'}</button>
         </div>
       </div>
       <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '300px 1fr 190px', minHeight: 0 }}>

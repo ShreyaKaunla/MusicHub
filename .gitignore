@@ -1,17 +1,41 @@
+# --- python environments (never commit these) ---
+__pycache__/
+*.py[cod]
 .env/
 .venv/
-venv/
 env/
+venv/
 *-env*/
+build-env/
+backend/tf-env-*/
 site-packages/
-__pycache__/
+
+# --- node ---
 node_modules/
+
+# --- build outputs ---
 dist/
-*.mp3
+build/
+backend/web/
+installer_output/
+
+# --- machine-local data & config ---
 *.db
 *.db-wal
 *.db-shm
 settings.json
-demo_music_src/
-!backend/demo_music/*.mp3
-!backend/demo_data/sql_db.db
+*.log
+
+# the unquantised export is >100MB (GitHub limit); the int8 model IS committed
+backend/models/clap_audio_fp32.onnx
+
+# --- audio files never go in the repo ---
+*.mp3
+*.wav
+*.flac
+*.m4a
+*.ogg
+
+# --- misc ---
+.DS_Store
+Thumbs.db

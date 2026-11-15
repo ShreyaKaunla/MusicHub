@@ -1,23 +1,29 @@
-import os
-import sys
-import subprocess
+"""Starts the MusicHub backend (FastAPI) on http://127.0.0.1:8000.
 
-def activate_backend():
-    print("⚡ Initializing MusicHub Server Environment...")
-    
-    # Check common virtual environment naming conventions dynamically
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    possible_pythons = [
-        os.path.join(base_dir, "env", "Scripts", "python.exe"),
-        os.path.join(base_dir, "venv", "Scripts", "python.exe"),
-        sys.executable # Fallback to active shell python if env folders are manually loaded
+Frontend dev server: `npm run dev` inside my-react-app/ (talks to port 8000).
+"""
+import os
+import subprocess
+import sys
+
+BASE = os.path.dirname(os.path.abspath(__file__))
+BACKEND = os.path.join(BASE, "backend")
+
+
+def main():
+    # Prefer the full-ML environment (torch + transformers -> CLAP recommendations).
+    candidates = [
+        os.path.join(BASE, "build-env", "Scripts", "python.exe"),
+        os.path.join(BACKEND, "env", "Scripts", "python.exe"),
+        os.path.join(BACKEND, "venv", "Scripts", "python.exe"),
+        sys.executable,
     ]
-    
-    env_python = next((p for p in possible_pythons if os.path.exists(p)), sys.executable)
-    print(f"🚀 Using Python engine context: {env_python}")
-    
-    # Fire up the standard server pool process loop
-    subprocess.run([env_python, "-m", "uvicorn", "backend.main:app", "--host", "127.0.0.1", "--port", "8000", "--reload"])
+    python = next((p for p in candidates if os.path.exists(p)), sys.executable)
+    print(f"⚡ Starting MusicHub backend on http://127.0.0.1:8000 (python: {python})")
+    env = {**os.environ, "PYTHONUTF8": "1"}  # emoji logs crash on the Windows cp1252 console otherwise
+    subprocess.run([python, "-m", "uvicorn", "main:app", "--host", "127.0.0.1", "--port", "8000", "--reload"],
+                   cwd=BACKEND, env=env)
+
 
 if __name__ == "__main__":
-    activate_backend()
+    main()

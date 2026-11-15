@@ -13,8 +13,7 @@ from mutagen.mp3 import MP3
 from mutagen.id3 import ID3, APIC
 from pydantic import BaseModel
 
-from config import (DB_PATH, CORS_ORIGINS, CORS_ORIGIN_REGEX, ALLOW_FOLDER_PICK, ALLOW_ANALYSIS, SINGLE_USER,
-                    get_active_music_folder, set_active_music_folder)
+from config import DB_PATH, CORS_ORIGINS, get_active_music_folder, set_active_music_folder
 from scan import ensure_schema_is_stable
 from extras import router, ensure_extra_schema
 from events import router as events_router, ensure_events_schema
@@ -26,7 +25,7 @@ from userdata import router as user_router
 
 
 def _clean(name: str) -> str:
-    """Bare file name from a URL part or a path of either OS (the demo DB is built on Windows, served on Linux)."""
+    """Bare file name from a URL part or a path of either OS."""
     return os.path.basename(urllib.parse.unquote(str(name)).replace("\\", "/"))
 
 
@@ -55,7 +54,6 @@ app.include_router(taste.router)  # taste profile + auto playlists (from taste.p
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ORIGINS,
-    allow_origin_regex=CORS_ORIGIN_REGEX or None,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -69,8 +67,6 @@ class FolderScanRequest(BaseModel):
 
 @app.post("/api/scan-folder")
 def client_trigger_scan(request: FolderScanRequest):
-    if not ALLOW_FOLDER_PICK:
-        raise HTTPException(status_code=403, detail="Folder scanning is disabled on this server.")
     name = request.folder_name
     target_path = name if os.path.isabs(name) else os.path.join(os.path.expanduser("~"), "Music", name)
     if not os.path.isdir(target_path):
@@ -256,7 +252,11 @@ def health():
     return {"status": "ok"}
 
 
-@app.get("/api/config")
-def client_config():
-    """Lets the UI hide features the server has switched off (public demo)."""
-    return {"allow_folder_pick": ALLOW_FOLDER_PICK, "allow_analysis": ALLOW_ANALYSIS, "demo": not SINGLE_USER}
+# ------------------------------------------------------------------ packaged UI (built by build_web.bat)
+from pathlib import Path
+
+from fastapi.staticfiles import StaticFiles
+
+_WEB = Path(__file__).resolve().parent / "web"
+if _WEB.is_dir():  # dev mode has no web/ folder and serves the UI from Vite instead
+    app.mount("/", StaticFiles(directory=_WEB, html=True), name="web")

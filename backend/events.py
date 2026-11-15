@@ -1,4 +1,4 @@
-"""Listening history. Every event belongs to an anonymous client_id (no login needed).
+"""Listening history. Events feed the taste profile for the "For You" home screen.
 
 Events: play, skip, complete, like, unlike
 `seconds` = how long the song was actually listened to (used to tell a skip from a real listen).
@@ -15,7 +15,7 @@ from identity import owner
 
 router = APIRouter()
 EVENT_TYPES = {"play", "skip", "complete", "like", "unlike"}
-MAX_EVENTS_PER_OWNER = 20000  # abuse guard for the public demo
+MAX_EVENTS_PER_OWNER = 20000  # safety valve against runaway event logging
 
 
 def _db():

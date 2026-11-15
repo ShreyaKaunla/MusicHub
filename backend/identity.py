@@ -1,27 +1,16 @@
-"""Who is calling, and the one-time migration to per-owner data.
+"""Ownership: this is a desktop build, so everything belongs to one person, owner "local".
 
-Desktop build (SINGLE_USER=1, default): everything belongs to one person, owner "local".
-Public demo (SINGLE_USER=0): each browser sends an anonymous X-Client-Id and only sees its own
-likes, playlists and history. Mood playlists belong to nobody ('') and are read-only for visitors.
+Also handles the one-time migration to per-owner data (idempotent).
 """
-import re
 import sqlite3 as sql
-from typing import Optional
 
-from fastapi import HTTPException
-
-from config import DB_PATH, SINGLE_USER
+from config import DB_PATH
 
 LOCAL = "local"
-_ID = re.compile(r"^[A-Za-z0-9_-]{8,64}$")
 
 
-def owner(x_client_id: Optional[str]) -> str:
-    if SINGLE_USER:
-        return LOCAL
-    if not x_client_id or not _ID.match(x_client_id):
-        raise HTTPException(400, "Missing or invalid X-Client-Id header")
-    return x_client_id
+def owner(_x_client_id=None):
+    return LOCAL
 
 
 def ensure_owner_schema():
@@ -46,7 +35,7 @@ def ensure_owner_schema():
         cur.execute("INSERT OR IGNORE INTO likes (owner, track_id) SELECT ?, track_id FROM liked_tracks", (LOCAL,))
         cur.execute("ALTER TABLE liked_tracks RENAME TO liked_tracks_migrated")  # kept as a backup
 
-    if SINGLE_USER and cur.execute("SELECT 1 FROM sqlite_master WHERE name='listen_events'").fetchone():
+    if cur.execute("SELECT 1 FROM sqlite_master WHERE name='listen_events'").fetchone():
         cur.execute("UPDATE listen_events SET client_id=? WHERE client_id<>?", (LOCAL, LOCAL))
     c.commit()
     c.close()

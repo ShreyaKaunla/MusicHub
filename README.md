@@ -148,3 +148,11 @@ build_installer.bat      → installer_output\MusicHub-1.0.0-Setup.exe
 - MP3 files only (`librosa` reads others, but the scanner looks for `.mp3`).
 - A handful of corrupt MP3s can't be embedded; they still play and recommend via fingerprints.
 - Mood sorting is a heuristic; use remove/move to correct it.
+
+## License
+
+Copyright (c) 2026 Shreya Kaunla - All Rights Reserved.
+
+You may run MusicHub for personal use and read the code for learning.
+Copying, redistributing, modifying, or any commercial use requires the
+author's written permission - see [LICENSE](LICENSE).

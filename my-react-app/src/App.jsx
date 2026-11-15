@@ -739,7 +739,7 @@ export default function App() {
             {busy ? 'Scanning…' : '📁 Choose folder'}</button>
         </div>
       </div>
-      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '300px 1fr 190px', minHeight: 0 }}>
+      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '360px 1fr 190px', minHeight: 0 }}>
         <aside style={{ padding: 16, overflowY: 'auto', borderRight: '1px solid #282828' }}>{renderLeft()}</aside>
         <main style={{ position: 'relative', overflow: 'hidden', minWidth: 0 }}>
           <div style={{ height: '100%', overflowY: 'auto', display: 'flex', padding: 24, paddingBottom: current ? BAR_H + 24 : 24, boxSizing: 'border-box' }}>
